@@ -1,6 +1,6 @@
 {
-    "thud_threshold": 8000,
-    "selected_sound_type": "dramatic",
+    "thud_threshold": 20000,
+    "selected_sound_type": "normal",
     "volume": 1,
     "enabled": true,
     "thud_enabled": true,

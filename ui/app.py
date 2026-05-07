@@ -22,6 +22,8 @@ class WaveformBar(QWidget):
         self.flash_timer.timeout.connect(self._stop_flash)
         
     def set_level(self, level):
+        # Throttle visual updates to prevent GUI lag
+        if abs(self.level - level) < 0.05: return
         self.level = level
         self.update()
 
@@ -103,7 +105,7 @@ class SpankYourWinUI(QMainWindow):
 
         # Header
         header_layout = QHBoxLayout()
-        header_layout.addWidget(QLabel("SPANK YOUR WIN\nv1.2.0"))
+        header_layout.addWidget(QLabel("SPANK YOUR WIN\nv1.2.1"))
         header_layout.addStretch()
         self.status_label = QLabel("[● ACTIVE]")
         header_layout.addWidget(self.status_label)
@@ -139,7 +141,7 @@ class SpankYourWinUI(QMainWindow):
         pack_layout.addWidget(self.btn_dramatic)
         layout.addLayout(pack_layout)
 
-        # Custom Upload / Override Button
+        # Custom Upload
         self.upload_btn = QPushButton()
         self.upload_btn.setObjectName("UPLOAD_BTN")
         self.upload_btn.clicked.connect(self._handle_upload)
@@ -153,7 +155,7 @@ class SpankYourWinUI(QMainWindow):
         sens_layout.addWidget(QLabel("Sensitivity"))
         self.sens_slider = QSlider(Qt.Orientation.Horizontal)
         self.sens_slider.setMinimum(100)
-        self.sens_slider.setMaximum(8000)
+        self.sens_slider.setMaximum(20000) # Increased max range for shouts
         self.sens_slider.setValue(self.settings['thud_threshold'])
         self.sens_slider.valueChanged.connect(self._on_sens_change)
         sens_layout.addWidget(self.sens_slider)
@@ -198,7 +200,7 @@ class SpankYourWinUI(QMainWindow):
         override = self.settings.get('custom_override_path')
         if override:
             filename = os.path.basename(override)
-            self.upload_btn.setText(f"USING: {filename}\nTAP TO REMOVE OVERRIDE")
+            self.upload_btn.setText(f"USING: {filename}\nTAP TO REMOVE")
             self.upload_btn.setStyleSheet("background-color: #ff2222; color: #0d0d0d;")
         else:
             self.upload_btn.setText("UPLOAD CUSTOM SOUND")
@@ -229,18 +231,15 @@ class SpankYourWinUI(QMainWindow):
         self.stop_clicked.emit()
 
     def _handle_upload(self):
-        # If already has override, clear it
         if self.settings.get('custom_override_path'):
             self.settings['custom_override_path'] = None
             self._update_upload_button_text()
             self.settings_changed.emit(self.settings)
-            self.add_log_entry("Override removed. Back to random packs.")
+            self.add_log_entry("Override removed.")
             return
 
-        # Pick a file
-        file_path, _ = QFileDialog.getOpenFileName(self, "Select sound override", "", "Audio Files (*.mp3 *.wav)")
+        file_path, _ = QFileDialog.getOpenFileName(self, "Select sound", "", "Audio Files (*.mp3 *.wav)")
         if file_path:
-            # We copy it to a local 'custom' folder to ensure path persists safely
             target_folder = os.path.abspath("sounds/custom")
             os.makedirs(target_folder, exist_ok=True)
             target_path = os.path.join(target_folder, os.path.basename(file_path))
@@ -249,9 +248,9 @@ class SpankYourWinUI(QMainWindow):
                 self.settings['custom_override_path'] = target_path
                 self._update_upload_button_text()
                 self.settings_changed.emit(self.settings)
-                self.add_log_entry(f"LOCKED sound: {os.path.basename(target_path)}")
+                self.add_log_entry(f"LOCKED: {os.path.basename(target_path)}")
             except Exception as e:
-                print(f"Error copying file: {e}")
+                print(f"Upload error: {e}")
 
     def add_log_entry(self, message):
         timestamp = QDateTime.currentDateTime().toString("hh:mm:ss")
@@ -264,4 +263,6 @@ class SpankYourWinUI(QMainWindow):
         self.visualizer.flash()
 
     def update_rms(self, level):
+        # Scale input level for visual benefit
+        # Hum is around 0.1-0.2, Shout is 0.8+
         self.visualizer.set_level(level)
