@@ -3,6 +3,6 @@
     "selected_sound_type": "normal",
     "volume": 1,
     "enabled": true,
-    "thud_enabled": false,
+    "thud_enabled": true,
     "usb_enabled": true
 }

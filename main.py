@@ -26,13 +26,18 @@ def main():
         
         def on_trigger(source_name):
             pack_type = settings['selected_sound_type']
-            # Folders: sounds/thud/normal, sounds/thud/dramatic, sounds/usb
-            if source_name == "usb":
-                folder = "sounds/usb"
+            
+            # Dynamic Folder Mapping
+            if source_name == "plugin":
+                folder = "sounds/usb/plugin"
+            elif source_name == "unplug":
+                folder = "sounds/usb/pugoff"
             else:
+                # Voice pack
                 folder = os.path.join("sounds", "thud", pack_type)
             
             if not os.path.exists(folder):
+                print(f"Warning: Folder not found {folder}")
                 folder = "sounds" # Ultimate fallback
 
             sound_path = engine.pick_random_sound(folder)
@@ -51,8 +56,8 @@ def main():
         mic_thread.voice_detected.connect(lambda: on_trigger("voice"))
         mic_thread.rms_update.connect(window.update_rms)
         
-        usb_thread.usb_inserted.connect(lambda: on_trigger("usb (plugin)"))
-        usb_thread.usb_removed.connect(lambda: on_trigger("usb (unplug)"))
+        usb_thread.usb_inserted.connect(lambda: on_trigger("plugin"))
+        usb_thread.usb_removed.connect(lambda: on_trigger("unplug"))
         
         window.settings_changed.connect(sync_settings)
         
