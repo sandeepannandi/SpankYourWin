@@ -1,6 +1,7 @@
 import sys
 import os
 import traceback
+# pyrefly: ignore [missing-import]
 from PyQt6.QtWidgets import QApplication
 from ui.app import SpankYourWinUI
 from core.settings import load_settings, save_settings

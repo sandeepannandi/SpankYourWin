@@ -2,6 +2,7 @@ import pyaudio
 import numpy as np
 import threading
 import time
+# pyrefly: ignore [missing-import]
 from PyQt6.QtCore import QObject, pyqtSignal
 
 class MicListener(QObject, threading.Thread):

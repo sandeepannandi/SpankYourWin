@@ -1,12 +1,15 @@
 import sys
 import os
 import shutil
+# pyrefly: ignore [missing-import]
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
     QLabel, QPushButton, QSlider, QScrollArea, QFrame,
     QButtonGroup, QFileDialog
 )
+# pyrefly: ignore [missing-import]
 from PyQt6.QtCore import Qt, pyqtSignal, QTimer, QDateTime
+# pyrefly: ignore [missing-import]
 from PyQt6.QtGui import QColor, QFont, QPainter, QBrush, QPen
 
 class WaveformBar(QWidget):

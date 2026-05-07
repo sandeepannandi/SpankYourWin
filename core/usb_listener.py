@@ -1,6 +1,7 @@
 import psutil
 import threading
 import time
+# pyrefly: ignore [missing-import]
 from PyQt6.QtCore import QObject, pyqtSignal
 
 class USBListener(QObject, threading.Thread):

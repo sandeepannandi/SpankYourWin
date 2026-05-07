@@ -2,7 +2,9 @@ import os
 import random
 import threading
 import traceback
+# pyrefly: ignore [missing-import]
 from playsound import playsound
+# pyrefly: ignore [missing-import]
 from pycaw.pycaw import AudioUtilities, ISimpleAudioVolume
 
 class SoundEngine:
