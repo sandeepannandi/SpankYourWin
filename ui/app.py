@@ -52,7 +52,6 @@ class WaveformBar(QWidget):
 class SpankYourWinUI(QMainWindow):
     stop_clicked = pyqtSignal()
     settings_changed = pyqtSignal(dict)
-    upload_sound_requested = pyqtSignal()
 
     def __init__(self, settings):
         super().__init__()
@@ -73,7 +72,7 @@ class SpankYourWinUI(QMainWindow):
                 padding: 10px; 
                 font-weight: bold;
                 text-transform: uppercase;
-                font-size: 12px;
+                font-size: 11px;
             }
             QPushButton:checked {
                 background-color: #ff2222;
@@ -88,7 +87,8 @@ class SpankYourWinUI(QMainWindow):
             QPushButton#UPLOAD_BTN {
                 background-color: #1a1a1a;
                 font-size: 10px;
-                padding: 5px;
+                padding: 8px;
+                text-align: center;
             }
             QSlider::groove:horizontal { border: 1px solid #ff2222; height: 4px; background: #1a1a1a; }
             QSlider::handle:horizontal { background: #ff2222; border: 1px solid #ff2222; width: 15px; margin: -5px 0; }
@@ -103,7 +103,7 @@ class SpankYourWinUI(QMainWindow):
 
         # Header
         header_layout = QHBoxLayout()
-        header_layout.addWidget(QLabel("SPANK YOUR WIN\nv1.1.0"))
+        header_layout.addWidget(QLabel("SPANK YOUR WIN\nv1.2.0"))
         header_layout.addStretch()
         self.status_label = QLabel("[● ACTIVE]")
         header_layout.addWidget(self.status_label)
@@ -139,9 +139,11 @@ class SpankYourWinUI(QMainWindow):
         pack_layout.addWidget(self.btn_dramatic)
         layout.addLayout(pack_layout)
 
-        self.upload_btn = QPushButton("UPLOAD CUSTOM SOUNDS")
+        # Custom Upload / Override Button
+        self.upload_btn = QPushButton()
         self.upload_btn.setObjectName("UPLOAD_BTN")
         self.upload_btn.clicked.connect(self._handle_upload)
+        self._update_upload_button_text()
         layout.addWidget(self.upload_btn)
 
         divider2 = QFrame(); divider2.setObjectName("DIVIDER"); layout.addWidget(divider2)
@@ -192,6 +194,16 @@ class SpankYourWinUI(QMainWindow):
         self.stop_btn.clicked.connect(self._handle_stop)
         layout.addWidget(self.stop_btn)
 
+    def _update_upload_button_text(self):
+        override = self.settings.get('custom_override_path')
+        if override:
+            filename = os.path.basename(override)
+            self.upload_btn.setText(f"USING: {filename}\nTAP TO REMOVE OVERRIDE")
+            self.upload_btn.setStyleSheet("background-color: #ff2222; color: #0d0d0d;")
+        else:
+            self.upload_btn.setText("UPLOAD CUSTOM SOUND")
+            self.upload_btn.setStyleSheet("background-color: #1a1a1a; color: #ff2222;")
+
     def _set_type(self, s_type):
         self.settings['selected_sound_type'] = s_type
         self.settings_changed.emit(self.settings)
@@ -217,17 +229,29 @@ class SpankYourWinUI(QMainWindow):
         self.stop_clicked.emit()
 
     def _handle_upload(self):
-        files, _ = QFileDialog.getOpenFileNames(self, "Select Sounds", "", "Audio Files (*.mp3 *.wav)")
-        if files:
-            # We determine where to copy based on selected pack
-            target_folder = os.path.join("sounds", "thud", self.settings['selected_sound_type'])
+        # If already has override, clear it
+        if self.settings.get('custom_override_path'):
+            self.settings['custom_override_path'] = None
+            self._update_upload_button_text()
+            self.settings_changed.emit(self.settings)
+            self.add_log_entry("Override removed. Back to random packs.")
+            return
+
+        # Pick a file
+        file_path, _ = QFileDialog.getOpenFileName(self, "Select sound override", "", "Audio Files (*.mp3 *.wav)")
+        if file_path:
+            # We copy it to a local 'custom' folder to ensure path persists safely
+            target_folder = os.path.abspath("sounds/custom")
             os.makedirs(target_folder, exist_ok=True)
-            for f in files:
-                try:
-                    shutil.copy(f, target_folder)
-                    self.add_log_entry(f"Uploaded: {os.path.basename(f)}")
-                except Exception as e:
-                    print(f"Error copying file: {e}")
+            target_path = os.path.join(target_folder, os.path.basename(file_path))
+            try:
+                shutil.copy(file_path, target_path)
+                self.settings['custom_override_path'] = target_path
+                self._update_upload_button_text()
+                self.settings_changed.emit(self.settings)
+                self.add_log_entry(f"LOCKED sound: {os.path.basename(target_path)}")
+            except Exception as e:
+                print(f"Error copying file: {e}")
 
     def add_log_entry(self, message):
         timestamp = QDateTime.currentDateTime().toString("hh:mm:ss")

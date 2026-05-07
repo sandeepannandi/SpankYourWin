@@ -1,8 +1,9 @@
 {
-    "thud_threshold": 100,
-    "selected_sound_type": "normal",
+    "thud_threshold": 8000,
+    "selected_sound_type": "dramatic",
     "volume": 1,
     "enabled": true,
     "thud_enabled": true,
-    "usb_enabled": true
+    "usb_enabled": true,
+    "custom_override_path": null
 }

@@ -5,11 +5,12 @@ SETTINGS_FILE = "settings.json"
 
 DEFAULT_SETTINGS = {
     "thud_threshold": 800,
-    "selected_sound_type": "normal", # "normal" or "dramatic"
-    "volume": 1,
+    "selected_sound_type": "normal",
+    "volume": 0.8,
     "enabled": True,
     "thud_enabled": True,
-    "usb_enabled": True
+    "usb_enabled": True,
+    "custom_override_path": None # New: stores path to a single locked-in sound
 }
 
 def load_settings():

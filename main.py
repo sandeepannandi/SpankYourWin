@@ -25,28 +25,34 @@ def main():
         usb_thread = USBListener(get_settings)
         
         def on_trigger(source_name):
-            pack_type = settings['selected_sound_type']
+            # Check for Global Override first
+            override_path = settings.get('custom_override_path')
             
-            # Dynamic Folder Mapping
-            if source_name == "plugin":
-                folder = "sounds/usb/plugin"
-            elif source_name == "unplug":
-                folder = "sounds/usb/pugoff"
+            if override_path and os.path.exists(override_path):
+                sound_path = override_path
             else:
-                # Voice pack
-                folder = os.path.join("sounds", "thud", pack_type)
-            
-            if not os.path.exists(folder):
-                print(f"Warning: Folder not found {folder}")
-                folder = "sounds" # Ultimate fallback
+                # Normal pack/random logic
+                pack_type = settings['selected_sound_type']
+                if source_name == "plugin":
+                    folder = "sounds/usb/plugin"
+                elif source_name == "unplug":
+                    folder = "sounds/usb/pugoff"
+                else:
+                    folder = os.path.join("sounds", "thud", pack_type)
+                
+                if not os.path.exists(folder):
+                    folder = "sounds" 
 
-            sound_path = engine.pick_random_sound(folder)
+                sound_path = engine.pick_random_sound(folder)
+
             if sound_path:
-                msg = "VOICE trigger" if source_name == "voice" else f"USB {source_name}"
+                msg = "VOICE trigger" if "voice" in source_name else f"USB {source_name}"
+                if override_path:
+                    msg += " [LOCKED]"
                 window.add_log_entry(msg)
                 engine.play_sound(sound_path, volume=settings['volume'])
             else:
-                window.add_log_entry(f"Trigger {source_name} but no sound in {folder}")
+                window.add_log_entry(f"No sound found for {source_name}")
 
         def sync_settings(new_settings):
             nonlocal settings
