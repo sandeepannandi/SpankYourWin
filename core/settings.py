@@ -4,9 +4,9 @@ import os
 SETTINGS_FILE = "settings.json"
 
 DEFAULT_SETTINGS = {
-    "thud_threshold_low": 1000,
-    "thud_threshold_high": 2500,
-    "volume": 0.8,
+    "thud_threshold": 800,
+    "selected_sound_type": "normal", # "normal" or "dramatic"
+    "volume": 1,
     "enabled": True,
     "thud_enabled": True,
     "usb_enabled": True
@@ -16,7 +16,8 @@ def load_settings():
     if os.path.exists(SETTINGS_FILE):
         try:
             with open(SETTINGS_FILE, "r") as f:
-                return {**DEFAULT_SETTINGS, **json.load(f)}
+                data = json.load(f)
+                return {**DEFAULT_SETTINGS, **data}
         except Exception:
             return DEFAULT_SETTINGS
     return DEFAULT_SETTINGS

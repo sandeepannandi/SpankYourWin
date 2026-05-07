@@ -1,5 +1,6 @@
 import sys
 import os
+import traceback
 from PyQt6.QtWidgets import QApplication
 from ui.app import SpankYourWinUI
 from core.settings import load_settings, save_settings
@@ -8,72 +9,67 @@ from core.mic_listener import MicListener
 from core.usb_listener import USBListener
 
 def main():
-    app = QApplication(sys.argv)
-    
-    # Init settings
-    settings = load_settings()
-    
-    # Init Sound Engine
-    engine = SoundEngine()
-    
-    # Init UI
-    window = SpankYourWinUI(settings)
-    
-    # Thread-safe settings getter
-    def get_settings():
-        return settings
+    try:
+        print("--- SPANKYOURWIN STARTING ---")
+        app = QApplication(sys.argv)
+        
+        settings = load_settings()
+        engine = SoundEngine()
+        window = SpankYourWinUI(settings)
+        
+        def get_settings():
+            return settings
 
-    # Init Listeners
-    mic_thread = MicListener(get_settings)
-    usb_thread = USBListener(get_settings)
-    
-    # Signal Connections
-    def on_thud(intensity):
-        folder = "sounds/thud/dramatic" if intensity == "dramatic" else "sounds/thud/normal"
-        # If specific folders don't exist, fallback to base thud folder
-        if not os.path.exists(folder):
-            folder = "sounds/thud"
+        mic_thread = MicListener(get_settings)
+        usb_thread = USBListener(get_settings)
+        
+        def on_trigger(source_name):
+            pack_type = settings['selected_sound_type']
+            # Folders: sounds/thud/normal, sounds/thud/dramatic, sounds/usb
+            if source_name == "usb":
+                folder = "sounds/usb"
+            else:
+                folder = os.path.join("sounds", "thud", pack_type)
             
-        sound_path = engine.pick_random_sound(folder)
-        if sound_path:
-            window.add_log_entry(f"THUD detected ({intensity})")
-            engine.play_sound(sound_path, volume=settings['volume'])
-        else:
-            window.add_log_entry(f"THUD detected but no sound found in {folder}")
+            if not os.path.exists(folder):
+                folder = "sounds" # Ultimate fallback
 
-    def on_usb():
-        folder = "sounds/usb"
-        sound_path = engine.pick_random_sound(folder)
-        if sound_path:
-            window.add_log_entry("USB inserted")
-            engine.play_sound(sound_path, volume=settings['volume'])
-        else:
-            window.add_log_entry("USB inserted but no sound found in sounds/usb")
+            sound_path = engine.pick_random_sound(folder)
+            if sound_path:
+                msg = "VOICE trigger" if source_name == "voice" else f"USB {source_name}"
+                window.add_log_entry(msg)
+                engine.play_sound(sound_path, volume=settings['volume'])
+            else:
+                window.add_log_entry(f"Trigger {source_name} but no sound in {folder}")
 
-    def sync_settings(new_settings):
-        nonlocal settings
-        settings = new_settings
-        save_settings(settings)
+        def sync_settings(new_settings):
+            nonlocal settings
+            settings = new_settings
+            save_settings(settings)
 
-    mic_thread.thud_detected.connect(on_thud)
-    mic_thread.rms_update.connect(window.update_rms)
-    usb_thread.usb_inserted.connect(on_usb)
-    window.settings_changed.connect(sync_settings)
-    
-    def cleanup():
-        mic_thread.stop()
-        usb_thread.stop()
-        sys.exit()
+        mic_thread.voice_detected.connect(lambda: on_trigger("voice"))
+        mic_thread.rms_update.connect(window.update_rms)
+        
+        usb_thread.usb_inserted.connect(lambda: on_trigger("usb (plugin)"))
+        usb_thread.usb_removed.connect(lambda: on_trigger("usb (unplug)"))
+        
+        window.settings_changed.connect(sync_settings)
+        
+        def cleanup():
+            mic_thread.stop()
+            usb_thread.stop()
+            sys.exit(0)
 
-    window.stop_clicked.connect(cleanup)
-    app.aboutToQuit.connect(cleanup)
+        window.stop_clicked.connect(cleanup)
+        app.aboutToQuit.connect(cleanup)
 
-    # Start threads
-    mic_thread.start()
-    usb_thread.start()
-
-    window.show()
-    sys.exit(app.exec())
+        mic_thread.start()
+        usb_thread.start()
+        window.show()
+        sys.exit(app.exec())
+    except Exception:
+        traceback.print_exc()
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()

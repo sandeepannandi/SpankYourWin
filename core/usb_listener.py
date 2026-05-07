@@ -1,14 +1,11 @@
-import win32gui
-import win32con
-import win32api
+import psutil
 import threading
+import time
 from PyQt6.QtCore import QObject, pyqtSignal
-
-# GUID for USB devices (Interface Class)
-# GUID_DEVINTERFACE_USB_DEVICE = "{A5DCBF10-6530-11D2-901F-00C04FB951ED}"
 
 class USBListener(QObject, threading.Thread):
     usb_inserted = pyqtSignal()
+    usb_removed = pyqtSignal()
 
     def __init__(self, settings_manager):
         QObject.__init__(self)
@@ -17,37 +14,40 @@ class USBListener(QObject, threading.Thread):
         self.settings = settings_manager
         self._running = False
 
+    def _get_drive_ids(self):
+        try:
+            return set(p.device for p in psutil.disk_partitions(all=True))
+        except:
+            return set()
+
     def run(self):
         self._running = True
+        previous_devices = self._get_drive_ids()
         
-        # We need a window to receive WM_DEVICECHANGE
-        wc = win32gui.WNDCLASS()
-        wc.lpfnWndProc = self._wnd_proc
-        wc.lpszClassName = "USBListenerWindow"
-        wc.hInstance = win32api.GetModuleHandle(None)
-        
-        try:
-            class_atom = win32gui.RegisterClass(wc)
-            self.hwnd = win32gui.CreateWindow(
-                class_atom, "USB Listener", 0, 0, 0, 0, 0, 0, 0, wc.hInstance, None
-            )
-        except Exception as e:
-            print(f"Failed to create USB listener window: {e}")
-            return
-
         while self._running:
-            win32gui.PumpWaitingMessages()
-
-    def _wnd_proc(self, hwnd, msg, wparam, lparam):
-        if msg == win32con.WM_DEVICECHANGE:
-            # DBT_DEVICEARRIVAL = 0x8000
-            if wparam == 0x8000:
-                settings = self.settings()
-                if settings['enabled'] and settings['usb_enabled']:
-                    self.usb_inserted.emit()
-        return win32gui.DefWindowProc(hwnd, msg, wparam, lparam)
+            try:
+                time.sleep(1.0)
+                current_devices = self._get_drive_ids()
+                
+                # Arrival
+                new_devices = current_devices - previous_devices
+                if new_devices:
+                    print(f"DEBUG: USB Inserted! {new_devices}")
+                    settings = self.settings()
+                    if settings['enabled'] and settings['usb_enabled']:
+                        self.usb_inserted.emit()
+                
+                # Removal
+                removed_devices = previous_devices - current_devices
+                if removed_devices:
+                    print(f"DEBUG: USB Removed! {removed_devices}")
+                    settings = self.settings()
+                    if settings['enabled'] and settings['usb_enabled']:
+                        self.usb_removed.emit()
+                
+                previous_devices = current_devices
+            except:
+                time.sleep(2.0)
 
     def stop(self):
         self._running = False
-        if hasattr(self, 'hwnd'):
-            win32gui.PostMessage(self.hwnd, win32con.WM_CLOSE, 0, 0)

@@ -5,9 +5,8 @@ import time
 from PyQt6.QtCore import QObject, pyqtSignal
 
 class MicListener(QObject, threading.Thread):
-    # Signals to communicate with UI
-    thud_detected = pyqtSignal(str)  # "normal" or "dramatic"
-    rms_update = pyqtSignal(float)   # For visualizer
+    voice_detected = pyqtSignal()
+    rms_update = pyqtSignal(float)
 
     def __init__(self, settings_manager):
         QObject.__init__(self)
@@ -22,53 +21,51 @@ class MicListener(QObject, threading.Thread):
         self.FORMAT = pyaudio.paInt16
         self.CHANNELS = 1
         self.RATE = 44100
-        
-        self.audio = pyaudio.PyAudio()
+
+        try:
+            self.audio = pyaudio.PyAudio()
+        except:
+            self.audio = None
 
     def run(self):
+        if not self.audio: return
         self._running = True
         try:
             stream = self.audio.open(
-                format=self.FORMAT,
-                channels=self.CHANNELS,
-                rate=self.RATE,
-                input=True,
-                frames_per_buffer=self.CHUNK
+                format=self.FORMAT, channels=self.CHANNELS, rate=self.RATE,
+                input=True, frames_per_buffer=self.CHUNK
             )
-        except Exception as e:
-            print(f"Failed to open audio stream: {e}")
-            return
+        except: return
 
         while self._running:
             try:
                 data = stream.read(self.CHUNK, exception_on_overflow=False)
                 audio_data = np.frombuffer(data, dtype=np.int16)
+                if len(audio_data) == 0: continue
+                
                 rms = np.sqrt(np.mean(audio_data.astype(np.float64)**2))
                 
-                # Normalize RMS for UI visualizer (roughly 0-1 range)
-                # Max value for int16 is 32768, but typical peaks are lower
-                normalized_rms = min(rms / 10000.0, 1.0)
-                self.rms_update.emit(normalized_rms)
+                # Emit update for visualizer
+                self.rms_update.emit(min(rms / 4000.0, 1.0))
 
-                # Detection logic
-                settings = self.settings() # Get latest settings
+                settings = self.settings()
                 if settings['enabled'] and settings['thud_enabled']:
                     current_time = time.time()
                     if current_time - self.last_trigger_time > self.cooldown:
-                        if rms > settings['thud_threshold_high']:
-                            self.thud_detected.emit("dramatic")
-                            self.last_trigger_time = current_time
-                        elif rms > settings['thud_threshold_low']:
-                            self.thud_detected.emit("normal")
+                        if rms > settings['thud_threshold']:
+                            print(f"!!! TRIGGER: Voice Detected! RMS: {rms:.0f}")
+                            self.voice_detected.emit()
                             self.last_trigger_time = current_time
 
-            except Exception as e:
-                print(f"Error in mic listener loop: {e}")
-                break
+            except: break
 
-        stream.stop_stream()
-        stream.close()
+        try:
+            stream.stop_stream()
+            stream.close()
+        except: pass
 
     def stop(self):
         self._running = False
-        self.audio.terminate()
+        if self.audio:
+            try: self.audio.terminate()
+            except: pass
