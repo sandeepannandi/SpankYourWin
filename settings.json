@@ -1,0 +1,8 @@
+{
+    "thud_threshold_low": 3000,
+    "thud_threshold_high": 4500,
+    "volume": 0.8,
+    "enabled": true,
+    "thud_enabled": true,
+    "usb_enabled": true
+}

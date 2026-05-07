@@ -1,0 +1,6 @@
+pyaudio
+numpy
+playsound==1.2.2
+pycaw
+pywin32
+PyQt6
